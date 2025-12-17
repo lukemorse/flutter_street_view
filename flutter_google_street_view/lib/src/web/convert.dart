@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:core';
 
 import 'package:google_maps/google_maps.dart' as gmaps;
-import 'package:google_maps/google_maps.dart';
+import 'package:google_maps/google_maps_streetview.dart' as gmaps;
 
 /// Convert StreetViewPanoramaOptions to StreetViewPanoramaOptions of gmap
 Future<gmaps.StreetViewPanoramaOptions> toStreetViewPanoramaOptions(
-    Map<String, dynamic> arg,
-    {gmaps.StreetViewPanorama? current}) async {
+  Map<String, dynamic> arg, {
+  gmaps.StreetViewPanorama? current,
+}) async {
   final result = gmaps.StreetViewPanoramaOptions();
   String? errorMsg;
   var request;
@@ -30,25 +30,34 @@ Future<gmaps.StreetViewPanoramaOptions> toStreetViewPanoramaOptions(
   }
   Completer<bool> check = Completer();
 
-  void error(gmaps.StreetViewPanoramaData? data, status) {
-    final bool find = (status.toString() == "OK");
-    if (find) {
-      if (location != null) {
-        result.position = data!.location!.latLng;
-      } else {
-        result.pano = data!.location!.pano;
-      }
-    } else {
-      errorMsg = location != null
-          ? "Oops..., no valid panorama found with position:${location.lat}, ${location.lng}, try to change `position`, `radius` or `source`."
-          : pano != null
+  gmaps.StreetViewService()
+      .getPanorama(request)
+      .then((response) {
+        try {
+          if (location != null) {
+            result.position = response.data.location?.latLng;
+          } else {
+            result.pano = response.data.location?.pano;
+          }
+          check.complete(true);
+        } catch (e) {
+          errorMsg = location != null
+              ? "Oops..., no valid panorama found with position:${location.lat}, ${location.lng}, try to change `position`, `radius` or `source`."
+              : pano != null
               ? "Oops..., no valid panorama found with panoId:$pano, try to change `panoId`."
               : "setPosition, catch unknown error.";
-    }
-    check.complete(find);
-  }
+          check.complete(false);
+        }
+      })
+      .catchError((error) {
+        errorMsg = location != null
+            ? "Oops..., no valid panorama found with position:${location.lat}, ${location.lng}, try to change `position`, `radius` or `source`."
+            : pano != null
+            ? "Oops..., no valid panorama found with panoId:$pano, try to change `panoId`."
+            : "setPosition, catch unknown error.";
+        check.complete(false);
+      });
 
-  gmaps.StreetViewService().getPanorama(request, error);
   await check.future;
 
   result.showRoadLabels = arg['streetNamesEnabled'] as bool? ?? true;
@@ -93,7 +102,8 @@ gmaps.StreetViewSource toStreetSource(Map<String, dynamic> arg) {
 }
 
 gmaps.StreetViewAddressControlOptions? toStreetViewAddressControlOptions(
-    dynamic arg) {
+  dynamic arg,
+) {
   final pos = arg is Map ? arg["addressControlOptions"] : arg;
   return gmaps.StreetViewAddressControlOptions()
     ..position = toControlPosition(pos);
@@ -105,7 +115,8 @@ gmaps.FullscreenControlOptions? toFullscreenControlOptions(dynamic arg) {
 }
 
 gmaps.MotionTrackingControlOptions? toMotionTrackingControlOptions(
-    dynamic arg) {
+  dynamic arg,
+) {
   final pos = arg is Map ? arg["motionTrackingControlOptions"] : arg;
   return gmaps.MotionTrackingControlOptions()
     ..position = toControlPosition(pos);
@@ -125,55 +136,55 @@ gmaps.ControlPosition? toControlPosition(String? position) {
   return position == "bottom_center"
       ? gmaps.ControlPosition.BOTTOM_CENTER
       : position == "bottom_left"
-          ? gmaps.ControlPosition.BOTTOM_LEFT
-          : position == "bottom_right"
-              ? gmaps.ControlPosition.BOTTOM_RIGHT
-              : position == "left_bottom"
-                  ? gmaps.ControlPosition.LEFT_BOTTOM
-                  : position == "left_center"
-                      ? gmaps.ControlPosition.LEFT_CENTER
-                      : position == "left_top"
-                          ? gmaps.ControlPosition.LEFT_TOP
-                          : position == "right_bottom"
-                              ? gmaps.ControlPosition.RIGHT_BOTTOM
-                              : position == "right_center"
-                                  ? gmaps.ControlPosition.RIGHT_CENTER
-                                  : position == "right_top"
-                                      ? gmaps.ControlPosition.RIGHT_TOP
-                                      : position == "top_center"
-                                          ? gmaps.ControlPosition.TOP_CENTER
-                                          : position == "top_left"
-                                              ? gmaps.ControlPosition.TOP_LEFT
-                                              : position == "top_right"
-                                                  ? gmaps
-                                                      .ControlPosition.TOP_RIGHT
-                                                  : null;
+      ? gmaps.ControlPosition.BOTTOM_LEFT
+      : position == "bottom_right"
+      ? gmaps.ControlPosition.BOTTOM_RIGHT
+      : position == "left_bottom"
+      ? gmaps.ControlPosition.LEFT_BOTTOM
+      : position == "left_center"
+      ? gmaps.ControlPosition.LEFT_CENTER
+      : position == "left_top"
+      ? gmaps.ControlPosition.LEFT_TOP
+      : position == "right_bottom"
+      ? gmaps.ControlPosition.RIGHT_BOTTOM
+      : position == "right_center"
+      ? gmaps.ControlPosition.RIGHT_CENTER
+      : position == "right_top"
+      ? gmaps.ControlPosition.RIGHT_TOP
+      : position == "top_center"
+      ? gmaps.ControlPosition.TOP_CENTER
+      : position == "top_left"
+      ? gmaps.ControlPosition.TOP_LEFT
+      : position == "top_right"
+      ? gmaps.ControlPosition.TOP_RIGHT
+      : null;
 }
 
 Map<String, dynamic> streetViewPanoramaLocationToJson(
-        gmaps.StreetViewPanorama panorama) =>
-    linkToJson(panorama.links)
-      ..["panoId"] = panorama.pano
-      ..addAll(positionToJson(panorama.position));
+  gmaps.StreetViewPanorama panorama,
+) => linkToJson(panorama.links)
+  ..["panoId"] = panorama.pano
+  ..addAll(positionToJson(panorama.position));
 
 Map<String, dynamic> streetViewPanoramaCameraToJson(
-        gmaps.StreetViewPanorama panorama) =>
-    {
-      "bearing": panorama.pov?.heading,
-      "tilt": panorama.pov?.pitch,
-      "zoom": panorama.zoom
-    };
+  gmaps.StreetViewPanorama panorama,
+) => {
+  "bearing": panorama.pov.heading,
+  "tilt": panorama.pov.pitch,
+  "zoom": panorama.zoom,
+};
 
 Map<String, dynamic> positionToJson(gmaps.LatLng? position) => {
-      "position": (position != null ? [position.lat, position.lng] : null)
-    };
+  "position": (position != null ? [position.lat, position.lng] : null),
+};
 
-Map<String, dynamic> linkToJson(List<gmaps.StreetViewLink?>? links) {
+Map<String, dynamic> linkToJson(dynamic links) {
   List links1 = [];
   if (links != null) {
-    links.forEach((l) {
+    for (var i = 0; i < links.length; i++) {
+      final l = links[i];
       if (l != null) links1.add([l.pano, l.heading]);
-    });
+    }
   }
   return {"links": links1};
 }
